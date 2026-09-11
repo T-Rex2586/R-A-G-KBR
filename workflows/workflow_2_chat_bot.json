@@ -1,0 +1,319 @@
+{
+  "name": "Workflow 2 - Telegram RAG Chat Bot (Multi-User)",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "node-tg-chat-trigger",
+      "name": "Telegram Trigger (Incoming Chat)",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        220,
+        340
+      ],
+      "webhookId": "tg-chat-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-has-text",
+              "leftValue": "={{ $json.message?.text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-filter-text",
+      "name": "Is Text Message? (FR-3)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        460,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message.text }}",
+        "hasSystemMessage": true,
+        "systemMessage": "Anda adalah Asisten AI Spesialis untuk materi perkuliahan Semantic Web & Knowledge Engineering (SWTech, RDF, RDFS, Ontologi, Protege, Ontology Engineering, Knowledge Base, SPARQL, Reasoning, dan SWRL).\n\nTugas Utama:\nJawablah setiap pertanyaan pengguna secara akurat, jelas, dan mendalam HANYA berdasarkan konteks dokumen materi yang diperoleh dari tool pencarian vektor (knowledge base perkuliahan).\n\nAturan Penting (Anti-Halusinasi):\n1. Selalu gunakan tool pencarian vektor untuk mencari konteks yang relevan sebelum menjawab.\n2. Jika informasi mengenai pertanyaan pengguna TIDAK DITEMUKAN di dalam dokumen atau tidak relevan, Anda WAJIB menjawab:\n'Maaf, informasi mengenai hal tersebut tidak ditemukan dalam materi perkuliahan yang tersedia.'\nJANGAN MENGARANG JAWABAN di luar materi sumber.\n3. Sebutkan nama dokumen atau bab materi (misal: 2.0 SWTech, 2.1 AP-RDF, 6. SPARQL, dll.) sebagai referensi pada jawaban Anda jika tersedia di konteks.\n4. Gunakan format Markdown standar untuk menyusun jawaban: gunakan **teks** untuk penekanan (bold), *teks* untuk italic, bullet point (* atau -) untuk daftar, dan backtick untuk istilah teknis.",
+        "options": {}
+      },
+      "id": "node-ai-agent",
+      "name": "AI Agent RAG (FR-5)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        720,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-flash-lite-latest",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "node-gemini-llm",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        640,
+        560
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gemini-cred",
+          "name": "Google Gemini (PaLM) API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger (Incoming Chat)').first().json.message.chat.id }}",
+        "contextWindowLength": 8
+      },
+      "id": "node-window-memory",
+      "name": "Window Buffer Memory (FR-7, FR-8)",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.2,
+      "position": [
+        780,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "name": "semantic_web_knowledge_retriever",
+        "description": "Cari konsep, sintaks, definisi, dan penjelasan mengenai Semantic Web, RDF, Ontologi, Protege, SPARQL, Reasoning, dan SWRL di knowledge base dokumen perkuliahan.",
+        "topK": 4
+      },
+      "id": "node-vector-tool",
+      "name": "Vector Store Tool (FR-4)",
+      "type": "@n8n/n8n-nodes-langchain.toolVectorStore",
+      "typeVersion": 1,
+      "position": [
+        940,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "qdrantCollection": "={{ $env.QDRANT_COLLECTION || 'knowledge_base' }}",
+        "options": {}
+      },
+      "id": "node-qdrant-store",
+      "name": "Qdrant Vector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        940,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "sentence-transformers/all-MiniLM-L6-v2"
+      },
+      "id": "node-hf-embed-tool",
+      "name": "Hugging Face Embeddings",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsHuggingFaceInference",
+      "typeVersion": 1,
+      "position": [
+        940,
+        920
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var t = $input.first().json.output || $input.first().json.text || '';\nt = t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nt = t.replace(/```/g, '');\nt = t.replace(/`([^`]+)`/g, '<code>$1</code>');\nt = t.replace(/\\*\\*(.+?)\\*\\*/g, '<b>$1</b>');\nt = t.replace(/__(.+?)__/g, '<b>$1</b>');\nt = t.replace(/^\\*\\s+/gm, '\u2022 ');\nt = t.replace(/^-\\s+/gm, '\u2022 ');\nt = t.replace(/^#{1,6}\\s+(.+)$/gm, '<b>$1</b>');\nt = t.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g, '<a href=\\\"$2\\\">$1</a>');\nt = t.replace(/[*_~#]/g, '');\nt = t.slice(0, 4000).trim();\nreturn [{ json: { cleanText: t } }];"
+      },
+      "id": "node-strip-markdown",
+      "name": "Markdown to HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger (Incoming Chat)').first().json.message.chat.id }}",
+        "text": "={{ $json.cleanText }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "node-send-tg-reply",
+      "name": "Send Telegram Reply (FR-3, FR-5)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1060,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-flash-lite-latest",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "node-gemini-tool-llm",
+      "name": "Google Gemini Chat Model (Vector Tool)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1140,
+        740
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gemini-cred",
+          "name": "Google Gemini (PaLM) API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger (Incoming Chat)": {
+      "main": [
+        [
+          {
+            "node": "Is Text Message? (FR-3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Text Message? (FR-3)": {
+      "main": [
+        [
+          {
+            "node": "AI Agent RAG (FR-5)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent RAG (FR-5)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory (FR-7, FR-8)": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent RAG (FR-5)",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vector Store Tool (FR-4)": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent RAG (FR-5)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Vector Store": {
+      "ai_vectorStore": [
+        [
+          {
+            "node": "Vector Store Tool (FR-4)",
+            "type": "ai_vectorStore",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hugging Face Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model (Vector Tool)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Vector Store Tool (FR-4)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent RAG (FR-5)": {
+      "main": [
+        [
+          {
+            "node": "Markdown to HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Markdown to HTML": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Reply (FR-3, FR-5)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

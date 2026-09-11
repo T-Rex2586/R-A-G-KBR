@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>KBR Bot - Knowledge-Based RAG</title>
+    <meta name="description" content="KBR Bot - Asisten AI RAG berbasis Knowledge Base dan Google Gemini Vision" />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 2a8 8 0 0 0-8 8c0 3.3 2 6.2 5 7.4V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2.6c3-1.2 5-4.1 5-7.4a8 8 0 0 0-8-8z'/><path d='M9.5 9h.01M14.5 9h.01M9 14h6'/></svg>" />
+
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+    <!-- Anti-Flash Theme Script (Prevents flash of wrong theme) -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('sw_rag_theme');
+          var theme = saved;
+          if (!theme) {
+            theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {}
+      })();
+    </script>
+    <!-- User / Device Session Isolation Script -->
+    <script>
+      (function() {
+        try {
+          var key = 'sw_rag_user_id';
+          var uid = localStorage.getItem(key);
+          if (!uid) {
+            uid = 'usr_' + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+            localStorage.setItem(key, uid);
+          }
+          // Set cookie for browser HTTP requests
+          document.cookie = 'sw_user_id=' + uid + '; path=/; max-age=31536000; SameSite=Lax';
+
+          // Intercept fetch to automatically attach X-User-ID header to all /api/ calls
+          var origFetch = window.fetch;
+          window.fetch = function(input, init) {
+            init = init || {};
+            var url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+            if (url.indexOf('/api/') !== -1) {
+              if (!init.headers) {
+                init.headers = {};
+              }
+              if (init.headers instanceof Headers) {
+                init.headers.set('X-User-ID', uid);
+              } else if (Array.isArray(init.headers)) {
+                init.headers.push(['X-User-ID', uid]);
+              } else {
+                init.headers['X-User-ID'] = uid;
+              }
+            }
+            return origFetch.call(this, input, init);
+          };
+        } catch (e) {
+          console.error('Session isolation script error:', e);
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-C1qRdULf.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BrPedg72.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

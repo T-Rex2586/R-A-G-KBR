@@ -1,0 +1,43 @@
+# Environment files
+.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# SQLite database files
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+
+# Node.js (jika frontend di-restore)
+node_modules/
+package-lock.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Logs
+*.log
+
+# Virtual environment
+venv/
+.venv/
+env/

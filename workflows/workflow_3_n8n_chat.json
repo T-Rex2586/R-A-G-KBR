@@ -1,0 +1,222 @@
+{
+  "name": "Workflow 3 - Native n8n GPT Web Chat Interface",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {
+          "allowFileUploads": false
+        }
+      },
+      "id": "node-chat-trigger",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        380,
+        340
+      ],
+      "webhookId": "semantic-gpt-chat"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "hasSystemMessage": true,
+        "systemMessage": "Anda adalah Asisten AI Spesialis untuk materi perkuliahan Semantic Web & Knowledge Engineering (SWTech, RDF, RDFS, Ontologi, Protege, Ontology Engineering, Knowledge Base, SPARQL, Reasoning, dan SWRL).\n\nTugas Utama:\nJawablah setiap pertanyaan pengguna secara akurat, jelas, dan mendalam HANYA berdasarkan konteks dokumen materi yang diperoleh dari tool pencarian vektor (knowledge base perkuliahan).\n\nAturan Penting (Anti-Halusinasi):\n1. Selalu gunakan tool pencarian vektor untuk mencari konteks yang relevan sebelum menjawab.\n2. Jika informasi mengenai pertanyaan pengguna TIDAK DITEMUKAN di dalam dokumen atau tidak relevan, Anda WAJIB menjawab:\n'Maaf, informasi mengenai hal tersebut tidak ditemukan dalam materi perkuliahan yang tersedia.'\nJANGAN MENGARANG JAWABAN di luar materi sumber.\n3. Sebutkan nama dokumen atau bab materi (misal: 2.0 SWTech, 2.1 AP-RDF, 6. SPARQL, dll.) beserta nomor halaman sebagai referensi pada jawaban Anda jika tersedia di konteks.\n4. Gunakan format Markdown standar untuk menyusun jawaban: gunakan **teks** untuk penekanan (bold), bullet point (* atau -) untuk daftar, dan blok kode untuk istilah teknis atau query SPARQL.",
+        "options": {}
+      },
+      "id": "node-chat-agent",
+      "name": "AI Agent RAG GPT",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        640,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-flash-lite-latest",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "node-chat-gemini",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        560,
+        560
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gemini-cred",
+          "name": "Google Gemini (PaLM) API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId || 'default-session' }}",
+        "contextWindowLength": 8
+      },
+      "id": "node-chat-memory",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.2,
+      "position": [
+        700,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "name": "semantic_web_knowledge_retriever",
+        "description": "Cari konsep, sintaks, definisi, dan penjelasan mengenai Semantic Web, RDF, Ontologi, Protege, SPARQL, Reasoning, dan SWRL di knowledge base dokumen perkuliahan.",
+        "topK": 4
+      },
+      "id": "node-chat-vector-tool",
+      "name": "Vector Store Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolVectorStore",
+      "typeVersion": 1,
+      "position": [
+        860,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "qdrantCollection": "={{ $env.QDRANT_COLLECTION || 'knowledge_base' }}",
+        "options": {}
+      },
+      "id": "node-chat-qdrant",
+      "name": "Qdrant Vector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        860,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "sentence-transformers/all-MiniLM-L6-v2"
+      },
+      "id": "node-chat-embed",
+      "name": "Hugging Face Embeddings",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsHuggingFaceInference",
+      "typeVersion": 1,
+      "position": [
+        860,
+        920
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-flash-lite-latest",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "node-chat-tool-gemini",
+      "name": "Google Gemini Chat Model (Vector Tool)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        740
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gemini-cred",
+          "name": "Google Gemini (PaLM) API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent RAG GPT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent RAG GPT",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent RAG GPT",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vector Store Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent RAG GPT",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Vector Store": {
+      "ai_vectorStore": [
+        [
+          {
+            "node": "Vector Store Tool",
+            "type": "ai_vectorStore",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hugging Face Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model (Vector Tool)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Vector Store Tool",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

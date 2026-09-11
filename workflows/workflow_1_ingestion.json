@@ -1,0 +1,322 @@
+{
+  "name": "Workflow 1 - Document Ingestion (Admin Only)",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "node-tg-trigger",
+      "name": "Telegram Trigger (Doc Upload)",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "tg-ingestion-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-admin",
+              "leftValue": "={{ $json.message?.from?.id?.toString() }}",
+              "rightValue": "={{ $env.TELEGRAM_ADMIN_CHAT_ID }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-admin-check",
+      "name": "Check Admin Whitelist (FR-9)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.message.chat.id }}",
+        "text": "⛔ *Akses Ditolak*\n\nHanya Administrator terdaftar yang diizinkan mengunggah dokumen baru ke Knowledge Base bersama.",
+        "additionalFields": {
+          "parse_mode": "Markdown",
+          "reply_to_message_id": "={{ $json.message.message_id }}"
+        }
+      },
+      "id": "node-deny-msg",
+      "name": "Send Access Denied",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        680,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-doc",
+              "leftValue": "={{ $json.message?.document?.file_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-check-doc",
+      "name": "Has Document Attached?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        680,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.message.chat.id }}",
+        "text": "⚠️ Harap lampirkan file PDF atau TXT untuk di-ingest ke Knowledge Base.",
+        "additionalFields": {
+          "reply_to_message_id": "={{ $json.message.message_id }}"
+        }
+      },
+      "id": "node-no-doc-msg",
+      "name": "Prompt For File",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        920,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "get",
+        "fileId": "={{ $json.message.document.file_id }}",
+        "download": true
+      },
+      "id": "node-get-file",
+      "name": "Download Telegram Document",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        940,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "qdrantCollection": "={{ $env.QDRANT_COLLECTION || 'knowledge_base' }}",
+        "options": {}
+      },
+      "id": "node-qdrant-insert",
+      "name": "Qdrant Vector Store (FR-2)",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        1220,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "sentence-transformers/all-MiniLM-L6-v2"
+      },
+      "id": "node-hf-embeddings",
+      "name": "Embeddings HuggingFace (384-dim)",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsHuggingFaceInference",
+      "typeVersion": 1,
+      "position": [
+        1140,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "binary",
+        "binaryPropertyName": "data",
+        "options": {}
+      },
+      "id": "node-doc-loader",
+      "name": "Default Data Loader",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "chunkSize": 1000,
+        "chunkOverlap": 100
+      },
+      "id": "node-text-splitter",
+      "name": "Recursive Character Text Splitter (FR-1)",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger (Doc Upload)').item.json.message.chat.id }}",
+        "text": "=✅ *Ingestion Berhasil!*\n\nDokumen `{{ $('Telegram Trigger (Doc Upload)').item.json.message.document.file_name }}` telah berhasil di-chunk (~1000 karakter, overlap 100) dan di-embed ke Qdrant Vector Store (`{{ $env.QDRANT_COLLECTION || 'knowledge_base' }}`).\n\nBot Telegram sekarang sudah dapat menjawab pertanyaan berbasis dokumen tersebut.",
+        "additionalFields": {
+          "parse_mode": "Markdown",
+          "reply_to_message_id": "={{ $('Telegram Trigger (Doc Upload)').item.json.message.message_id }}"
+        }
+      },
+      "id": "node-success-msg",
+      "name": "Send Success Notification",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1560,
+        140
+      ]
+    }
+  ],
+  "connections": {
+    "Telegram Trigger (Doc Upload)": {
+      "main": [
+        [
+          {
+            "node": "Check Admin Whitelist (FR-9)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Admin Whitelist (FR-9)": {
+      "main": [
+        [
+          {
+            "node": "Has Document Attached?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Access Denied",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Document Attached?": {
+      "main": [
+        [
+          {
+            "node": "Download Telegram Document",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prompt For File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Telegram Document": {
+      "main": [
+        [
+          {
+            "node": "Qdrant Vector Store (FR-2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings HuggingFace (384-dim)": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant Vector Store (FR-2)",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Qdrant Vector Store (FR-2)",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Character Text Splitter (FR-1)": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Vector Store (FR-2)": {
+      "main": [
+        [
+          {
+            "node": "Send Success Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
