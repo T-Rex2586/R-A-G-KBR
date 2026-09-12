@@ -10,8 +10,9 @@ import sys
 import uuid
 import logging
 import time
+import re
 from collections import defaultdict
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple, Any
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -23,6 +24,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from qdrant_client import QdrantClient
 from fastembed import TextEmbedding
+from flashrank import Ranker, RerankRequest
+from rank_bm25 import BM25Plus
 
 # Load environment
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -43,6 +46,9 @@ QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "knowledge_base")
 # Initialize Vector Search & Embedder
 logger.info("Memuat model embedding sentence-transformers/all-MiniLM-L6-v2...")
 embedder = TextEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+logger.info("Memuat model Cross-Encoder Reranker FlashRank (ms-marco-TinyBERT-L-2-v2)...")
+ranker = Ranker(model_name="ms-marco-TinyBERT-L-2-v2")
 
 logger.info(f"Menghubungkan ke Qdrant di {QDRANT_HOST}...")
 qdrant_client = QdrantClient(url=QDRANT_HOST, api_key=QDRANT_API_KEY, timeout=10)
@@ -313,31 +319,104 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
-    sources: List[Dict[str, str]]
+    sources: List[Dict[str, Any]]
     session_id: str
     session_title: str
+    search_query_used: Optional[str] = None
+    retrieval_method: Optional[str] = "advanced_rag_hybrid_rerank"
 
 
-def search_context(query: str, top_k: int = 6) -> List[Dict[str, str]]:
-    """Cari dokumen relevan dari Qdrant dengan deduplikasi multi-kandidat (top 40)."""
+PRONOUN_TRIGGERS = {
+    "ini", "itu", "tersebut", "dia", "nya", "tadi", "fungsinya", "caranya", 
+    "contohnya", "bedanya", "perbedaannya", "mengapa", "kenapa", "bagaimana",
+    "kelebihannya", "kekurangannya", "sintaksnya", "maksudnya", "maksud"
+}
+
+
+def rewrite_conversational_query(raw_query: str, session_id: str) -> str:
+    """Jika query percakapan merujuk konteks giliran sebelumnya, tulis ulang menjadi query mandiri."""
+    if not session_id or not GEMINI_API_KEY:
+        return raw_query
+
+    history = get_session_history(session_id, limit=4)
+    if not history:
+        return raw_query
+
+    # Deteksi apakah query memerlukan penulisan ulang kontekstual
+    words = set(re.findall(r"\w+", raw_query.lower()))
+    is_referential = bool(words & PRONOUN_TRIGGERS) or len(raw_query.split()) <= 4 or raw_query.lower().startswith((
+        "lalu", "kemudian", "selain itu", "kalau", "bagaimana jika", "apakah ada", "apa lagi", "mengapa"
+    ))
+
+    if not is_referential:
+        return raw_query
+
+    # Buat riwayat singkat 2 turn terakhir
+    conv_history_str = ""
+    for h in history[-3:]:
+        role = "User" if h["role"] == "user" else "Assistant"
+        conv_history_str += f"{role}: {h['text'][:140]}\n"
+
+    prompt = f"""Tugas Anda: Tulis ulang pertanyaan lanjutan pengguna menjadi satu kalimat query pencarian mandiri (standalone search query) yang padat kata kunci dalam bahasa Indonesia untuk mencari materi Semantic Web / Knowledge Engineering.
+Sertakan entitas / topik utama dari riwayat percakapan sebelumnya.
+JANGAN MENJAWAB PERTANYAAN. Keluarkan HANYA 1 baris query pencarian tanpa tanda kutip.
+
+Riwayat Obrolan:
+{conv_history_str}
+
+Pertanyaan Lanjutan Pengguna:
+{raw_query}
+
+Query Pencarian Mandiri:"""
+
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.0,
+                "maxOutputTokens": 60
+            }
+        }
+        res = requests.post(url, json=payload, timeout=3.5)
+        if res.status_code == 200:
+            data = res.json()
+            rewritten = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+            rewritten = rewritten.strip('"\'`').replace("\n", " ").strip()
+            if rewritten and len(rewritten) > 3:
+                logger.info(f"[Advanced RAG] Query Rewritten: '{raw_query}' -> '{rewritten}'")
+                return rewritten
+    except Exception as e:
+        logger.warning(f"Gagal rewrite query, fallback ke raw_query: {e}")
+
+    return raw_query
+
+
+def tokenize_text(text: str) -> List[str]:
+    """Tokenisasi kata sederhana untuk BM25."""
+    return re.findall(r"\w+", text.lower())
+
+
+def search_hybrid_rrf(query: str, candidate_limit: int = 40) -> List[Dict[str, Any]]:
+    """Mengambil kandidat dengan Dense Vector Search + BM25 Keyword Scoring dan Reciprocal Rank Fusion."""
     try:
         query_vector = list(embedder.embed([query]))[0].tolist()
         if hasattr(qdrant_client, "query_points"):
             response = qdrant_client.query_points(
                 collection_name=QDRANT_COLLECTION,
                 query=query_vector,
-                limit=40,
+                limit=candidate_limit,
                 with_payload=True
             )
             points = response.points
         else:
             points, _ = qdrant_client.scroll(
                 collection_name=QDRANT_COLLECTION,
-                limit=40,
+                limit=candidate_limit,
                 with_payload=True
             )
 
-        contexts = []
+        raw_candidates = []
         seen = set()
 
         for p in points:
@@ -345,9 +424,8 @@ def search_context(query: str, top_k: int = 6) -> List[Dict[str, str]]:
             content = str(payload.get("content", "")).strip()
             source = str(payload.get("source") or "Materi Kuliah")
             page = str(payload.get("page") or "?")
-            score = getattr(p, "score", 0.0)
+            dense_score = float(getattr(p, "score", 0.0) or 0.0)
 
-            # Abaikan blob atau teks yang terlalu pendek
             if not content or len(content) < 30 or source.lower() == "blob":
                 continue
 
@@ -356,20 +434,93 @@ def search_context(query: str, top_k: int = 6) -> List[Dict[str, str]]:
                 continue
             seen.add(key)
 
-            contexts.append({
+            raw_candidates.append({
                 "source": source,
                 "page": page,
                 "content": content,
-                "score": float(score) if score else 0.0
+                "dense_score": dense_score
             })
 
-            if len(contexts) >= top_k:
-                break
+        if not raw_candidates:
+            return []
 
-        return contexts
+        # Hitung Peringkat BM25 pada kandidat
+        tokenized_corpus = [tokenize_text(c["content"]) for c in raw_candidates]
+        tokenized_query = tokenize_text(query)
+
+        if tokenized_corpus and tokenized_query:
+            bm25 = BM25Plus(tokenized_corpus)
+            bm25_scores = bm25.get_scores(tokenized_query)
+            bm25_indexed = sorted(enumerate(bm25_scores), key=lambda x: x[1], reverse=True)
+            bm25_rank_map = {idx: rank for rank, (idx, _) in enumerate(bm25_indexed)}
+        else:
+            bm25_scores = [0.0] * len(raw_candidates)
+            bm25_rank_map = {i: i for i in range(len(raw_candidates))}
+
+        # Reciprocal Rank Fusion (RRF)
+        # RRF_score = 1 / (60 + dense_rank) + 1 / (60 + bm25_rank)
+        K_RRF = 60
+        for dense_rank, cand in enumerate(raw_candidates):
+            bm25_rank = bm25_rank_map.get(dense_rank, len(raw_candidates))
+            bm25_val = float(bm25_scores[dense_rank]) if dense_rank < len(bm25_scores) else 0.0
+            rrf_score = (1.0 / (K_RRF + dense_rank)) + (1.0 / (K_RRF + bm25_rank))
+            cand["bm25_score"] = bm25_val
+            cand["rrf_score"] = rrf_score
+
+        # Urutkan berdasarkan skor RRF tertinggi
+        fused_candidates = sorted(raw_candidates, key=lambda x: x["rrf_score"], reverse=True)
+        return fused_candidates
     except Exception as e:
-        logger.error(f"Error saat similarity search Qdrant: {e}")
+        logger.error(f"Error saat hybrid search Qdrant: {e}")
         return []
+
+
+def rerank_contexts(query: str, candidates: List[Dict[str, Any]], top_k: int = 5) -> List[Dict[str, Any]]:
+    """Cross-Encoder Reranking menggunakan FlashRank untuk akurasi tertinggi."""
+    if not candidates:
+        return []
+
+    # Ambil top 15 kandidat RRF untuk di-rerank
+    pool = candidates[:15]
+
+    try:
+        passages = [
+            {"id": i, "text": c["content"], "meta": c}
+            for i, c in enumerate(pool)
+        ]
+        rerank_req = RerankRequest(query=query, passages=passages)
+        ranked_results = ranker.rerank(rerank_req)
+
+        final_contexts = []
+        for res in ranked_results[:top_k]:
+            item = res["meta"]
+            item["score"] = float(item["dense_score"])
+            item["rerank_score"] = float(res["score"])
+            final_contexts.append(item)
+
+        return final_contexts
+    except Exception as e:
+        logger.warning(f"Error saat Cross-Encoder reranking, fallback ke RRF candidates: {e}")
+        for c in pool[:top_k]:
+            c["score"] = float(c["dense_score"])
+            c["rerank_score"] = float(c.get("rrf_score", 0.0))
+        return pool[:top_k]
+
+
+def search_context(raw_query: str, session_id: Optional[str] = None, top_k: int = 5) -> Tuple[List[Dict[str, Any]], str]:
+    """Pipeline Advanced RAG lengkap: Rewriting -> Hybrid RRF -> FlashRank Reranker."""
+    # 1. Conversational Query Rewriting
+    effective_query = raw_query
+    if session_id:
+        effective_query = rewrite_conversational_query(raw_query, session_id)
+
+    # 2. Hybrid Dense + BM25 Search dengan Reciprocal Rank Fusion
+    fused_candidates = search_hybrid_rrf(effective_query, candidate_limit=40)
+
+    # 3. Cross-Encoder Reranking (FlashRank)
+    final_contexts = rerank_contexts(effective_query, fused_candidates, top_k=top_k)
+
+    return final_contexts, effective_query
 
 
 def generate_gemini_reply(
@@ -552,8 +703,8 @@ async def chat_endpoint(req: ChatRequest, request: Request):
     title_prefix = "📷 " if image_data else ""
     session_title = title_prefix + (query[:30] + ("..." if len(query) > 30 else "")) or "Percakapan Baru"
 
-    # 1. Similarity Search ke Qdrant
-    contexts = search_context(query, top_k=4)
+    # 1. Pipeline Advanced RAG (Conversational Rewriter + Hybrid BM25/Dense RRF + FlashRank Reranker)
+    contexts, search_query_used = search_context(raw_query=query, session_id=session_id, top_k=4)
 
     # 2. Pemanggilan LLM Gemini (Vision Multimodal + RAG)
     try:
@@ -579,7 +730,7 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         bot_reply=reply
     )
 
-    # Siapkan data sumber sitasi yang bersih
+    # Siapkan data sumber sitasi yang bersih dengan skor reranker
     clean_sources = []
     seen_sources = set()
     for c in contexts:
@@ -590,14 +741,17 @@ async def chat_endpoint(req: ChatRequest, request: Request):
             clean_sources.append({
                 "source": c["source"],
                 "page": c["page"],
-                "snippet": snippet + "..."
+                "snippet": snippet + "...",
+                "rerank_score": round(float(c.get("rerank_score", 0.0)), 4)
             })
 
     return ChatResponse(
         reply=reply,
         sources=clean_sources,
         session_id=session_id,
-        session_title=session_title
+        session_title=session_title,
+        search_query_used=search_query_used,
+        retrieval_method="advanced_rag_hybrid_rerank"
     )
 
 

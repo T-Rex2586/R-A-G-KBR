@@ -134,6 +134,25 @@
       .rag-suggestion-chip:hover .rag-suggestion-arrow {
         transform: translateX(3px);
       }
+      .rag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 2px 8px;
+        margin-left: 8px;
+        border-radius: 9999px;
+        background: rgba(16, 185, 129, 0.12);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        vertical-align: middle;
+      }
+      [data-theme="dark"] .rag-badge {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        border-color: rgba(52, 211, 153, 0.4);
+      }
     </style>
   </head>
   <body>
@@ -206,12 +225,28 @@
           }, 120);
         });
 
-        // MutationObserver to enhance newly rendered bot message turns
+        function enhanceHeaderBadge() {
+          var header = document.querySelector('.header-title, .app-title, .brand-text, .header-left h1, .header-left h2, .topbar-title');
+          if (header && !header.dataset.ragBadgeAttached) {
+            header.dataset.ragBadgeAttached = 'true';
+            var badge = document.createElement('span');
+            badge.className = 'rag-badge';
+            badge.innerHTML = '⚡ Advanced RAG';
+            badge.title = 'Didukung oleh Conversational Query Rewriter, Hybrid BM25+Dense RRF, dan FlashRank Cross-Encoder';
+            header.appendChild(badge);
+          }
+        }
+
+        // MutationObserver to enhance newly rendered elements
         var observer = new MutationObserver(function() {
           enhanceFollowUpSuggestions();
+          enhanceHeaderBadge();
         });
         observer.observe(document.body, { childList: true, subtree: true });
-        window.addEventListener('DOMContentLoaded', enhanceFollowUpSuggestions);
+        window.addEventListener('DOMContentLoaded', function() {
+          enhanceFollowUpSuggestions();
+          enhanceHeaderBadge();
+        });
       })();
     </script>
   </body>
