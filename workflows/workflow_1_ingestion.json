@@ -121,6 +121,57 @@
     },
     {
       "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-size",
+              "leftValue": "={{ $json.message?.document?.file_size || 0 }}",
+              "rightValue": 20971520,
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-check-size",
+      "name": "Is File <= 20MB?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        920,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.message.chat.id }}",
+        "text": "=⚠️ *Ukuran File Terlalu Besar*\n\nFile `{{ $json.message.document.file_name }}` berukuran *{{ ($json.message.document.file_size / 1048576).toFixed(1) }} MB*.\n\nTelegram Bot API membatasi download file otomatis maksimal *20 MB*.\n\n💡 *Solusi:*\n1. Kompres file PDF Anda (misal via ilovepdf.com) agar di bawah 20 MB lalu kirim ulang, atau\n2. Letakkan file langsung ke folder `Sumber_Data/` di server lalu jalankan skrip embedding lokal.",
+        "additionalFields": {
+          "parse_mode": "Markdown",
+          "reply_to_message_id": "={{ $json.message.message_id }}"
+        }
+      },
+      "id": "node-file-too-big-msg",
+      "name": "Send File Too Big Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1160,
+        260
+      ]
+    },
+    {
+      "parameters": {
         "resource": "file",
         "operation": "get",
         "fileId": "={{ $json.message.document.file_id }}",
@@ -131,8 +182,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        940,
-        140
+        1160,
+        60
       ]
     },
     {
@@ -194,19 +245,33 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $('Telegram Trigger (Doc Upload)').item.json.message.chat.id }}",
-        "text": "=✅ *Ingestion Berhasil!*\n\nDokumen `{{ $('Telegram Trigger (Doc Upload)').item.json.message.document.file_name }}` telah berhasil di-chunk (~1000 karakter, overlap 100) dan di-embed ke Qdrant Vector Store (`{{ $env.QDRANT_COLLECTION || 'knowledge_base' }}`).\n\nBot Telegram sekarang sudah dapat menjawab pertanyaan berbasis dokumen tersebut.",
+        "jsCode": "const items = $input.all();\nconst triggerData = $('Telegram Trigger (Doc Upload)').first().json;\n\nreturn [{\n  json: {\n    total_chunks: items.length,\n    file_name: triggerData.message?.document?.file_name || 'Dokumen',\n    chat_id: triggerData.message.chat.id,\n    message_id: triggerData.message.message_id\n  }\n}];"
+      },
+      "id": "node-aggregate-chunks",
+      "name": "Aggregate to Single Item",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1460,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "=✅ *Ingestion Berhasil!*\n\nDokumen `{{ $json.file_name }}` telah berhasil diproses (total {{ $json.total_chunks }} chunks) dan di-embed ke Qdrant Vector Store (`{{ $env.QDRANT_COLLECTION || 'knowledge_base' }}`).\n\nBot Telegram sekarang sudah dapat menjawab pertanyaan berbasis dokumen tersebut.",
         "additionalFields": {
           "parse_mode": "Markdown",
-          "reply_to_message_id": "={{ $('Telegram Trigger (Doc Upload)').item.json.message.message_id }}"
+          "reply_to_message_id": "={{ $json.message_id }}"
         }
       },
       "id": "node-success-msg",
       "name": "Send Success Notification",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
+      "executeOnce": true,
       "position": [
-        1560,
+        1700,
         140
       ]
     }
@@ -245,7 +310,7 @@
       "main": [
         [
           {
-            "node": "Download Telegram Document",
+            "node": "Is File <= 20MB?",
             "type": "main",
             "index": 0
           }
@@ -253,6 +318,24 @@
         [
           {
             "node": "Prompt For File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is File <= 20MB?": {
+      "main": [
+        [
+          {
+            "node": "Download Telegram Document",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send File Too Big Alert",
             "type": "main",
             "index": 0
           }
@@ -304,6 +387,17 @@
       ]
     },
     "Qdrant Vector Store (FR-2)": {
+      "main": [
+        [
+          {
+            "node": "Aggregate to Single Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate to Single Item": {
       "main": [
         [
           {

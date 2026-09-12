@@ -209,8 +209,10 @@ def main():
         for page_info in pages:
             chunks = chunk_text(page_info["text"], CHUNK_SIZE, CHUNK_OVERLAP)
             for c_idx, c_text in enumerate(chunks):
+                # ID Deterministik (UUID v5) agar jika di-embed ulang, Qdrant melakukan overwrite/upsert dan tidak menduplikat data
+                chunk_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{pdf_path.name}_p{page_info['page']}_c{c_idx}"))
                 all_chunks.append({
-                    "id": str(uuid.uuid4()),
+                    "id": chunk_id,
                     "text": c_text,
                     "metadata": {
                         "source": pdf_path.name,
@@ -222,7 +224,7 @@ def main():
                 doc_chunks_count += 1
         print(f"   [OK] {pdf_path.name}: {len(pages)} halaman -> {doc_chunks_count} chunk")
 
-    print(f"\n[+] Total chunk yang dihasilkan: {len(all_chunks)} chunk")
+    print(f"\n[+] Total chunk unik yang dihasilkan: {len(all_chunks)} chunk")
 
     # 2. Inisialisasi Vector DB Qdrant
     print(f"\n[*] Langkah 2: Menghubungkan ke Qdrant ({QDRANT_HOST})...")
@@ -238,15 +240,16 @@ def main():
         collections = client.get_collections().collections
         existing_names = [c.name for c in collections]
 
-        if QDRANT_COLLECTION not in existing_names:
-            print(f"[*] Membuat collection baru: '{QDRANT_COLLECTION}' (Dimensi: 384, Jarak: Cosine)...")
-            client.create_collection(
-                collection_name=QDRANT_COLLECTION,
-                vectors_config=VectorParams(size=384, distance=Distance.COSINE)
-            )
-            print(f"[+] Collection '{QDRANT_COLLECTION}' berhasil dibuat.")
-        else:
-            print(f"[+] Collection '{QDRANT_COLLECTION}' sudah ada di Qdrant.")
+        if QDRANT_COLLECTION in existing_names:
+            print(f"[*] Membersihkan collection lama '{QDRANT_COLLECTION}' agar bebas duplikasi...")
+            client.delete_collection(collection_name=QDRANT_COLLECTION)
+
+        print(f"[*] Membuat collection baru yang bersih: '{QDRANT_COLLECTION}' (Dimensi: 384, Jarak: Cosine)...")
+        client.create_collection(
+            collection_name=QDRANT_COLLECTION,
+            vectors_config=VectorParams(size=384, distance=Distance.COSINE)
+        )
+        print(f"[+] Collection '{QDRANT_COLLECTION}' siap digunakan.")
     except Exception as e:
         print(f"[!] Gagal menghubungkan ke Qdrant: {e}")
         print("[TIP] Pastikan kontainer docker 'qdrant' sudah berjalan: docker compose up -d qdrant")

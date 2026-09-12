@@ -229,7 +229,17 @@ Instruksi Utama:
    "Maaf, informasi mengenai hal tersebut tidak ditemukan dalam materi perkuliahan yang tersedia."
    JANGAN MENGARANG JAWABAN untuk topik di luar materi kuliah.
 6. Analisis Gambar & Multimodal:
-   Jika pengguna melampirkan gambar (seperti diagram graf RDF, antarmuka Protege, hierarki ontologi, rumus logika inferensi, atau potongan query SPARQL), analisis visual tersebut secara mendalam, sebutkan komponen yang terlihat, dan kaitkan pembahasannya dengan materi modul perkuliahan yang relevan."""
+   Jika pengguna melampirkan gambar (seperti diagram graf RDF, antarmuka Protege, hierarki ontologi, rumus logika inferensi, atau potongan query SPARQL), analisis visual tersebut secara mendalam, sebutkan komponen yang terlihat, dan kaitkan pembahasannya dengan materi modul perkuliahan yang relevan.
+7. Rekomendasi Pertanyaan Lanjutan (Interactive Follow-up Suggestions):
+   Di akhir setiap penjelasan materi yang sukses, SELALU berikan 2 hingga 3 rekomendasi pertanyaan selanjutnya yang menarik dan relevan untuk diajukan pengguna, dengan format tepat seperti ini:
+
+   ---
+   💡 **Rekomendasi Pertanyaan Terkait:**
+   * ↳ [Pertanyaan lanjutan 1 yang spesifik dan relevan]
+   * ↳ [Pertanyaan lanjutan 2 yang spesifik dan relevan]
+   * ↳ [Pertanyaan lanjutan 3 yang spesifik dan relevan]
+
+   (Gunakan simbol panah ↳ persis seperti di atas agar otomatis menjadi tombol klik interaktif di antarmuka web. Jangan cantumkan rekomendasi jika pertanyaan ditolak karena di luar materi kuliah)."""
 
 app = FastAPI(title="KBR Bot - GPT Interface", version="1.0.0")
 
