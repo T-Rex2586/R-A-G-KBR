@@ -198,7 +198,7 @@ Buka dashboard n8n (`http://localhost:5678`), masuk ke menu **Credentials** -> *
 ## 🧪 Panduan Pengujian (Multi-User & RAG)
 
 ### Uji Coba 1: Uji Relevansi Dokumen (Anti-Halusinasi)
-Kirim pesan berikut ke Bot Telegram Anda:
+Kirim pesan berikut ke Bot Telegram Anda ([@KBRRAGbot](https://t.me/KBRRAGbot)):
 - **Pertanyaan 1 (Ada di materi):**
   > *"Apa itu Resource Description Framework (RDF) dan bagaimana konsep Subject-Predicate-Object bekerja?"*
   - **Hasil yang Diharapkan:** Bot menjelaskan konsep RDF Triple secara akurat mengutip materi perkuliahan.
