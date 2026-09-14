@@ -3,30 +3,32 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>KBR Bot - Knowledge-Based RAG</title>
-    <meta name="description" content="KBR Bot - Asisten AI RAG berbasis Knowledge Base dan Google Gemini Vision" />
+    <title>KBR Bot - Semantic Web & Knowledge Base System</title>
+    <meta name="description" content="Sistem Asisten Cerdas Semantic Web & Knowledge Engineering berbasis Tri-Stage Hybrid RAG, Qdrant Vector Engine, dan Multimodal Vision." />
+    <meta name="theme-color" content="#050811" />
     
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 2a8 8 0 0 0-8 8c0 3.3 2 6.2 5 7.4V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2.6c3-1.2 5-4.1 5-7.4a8 8 0 0 0-8-8z'/><path d='M9.5 9h.01M14.5 9h.01M9 14h6'/></svg>" />
+    <!-- Favicon SVG (No Emojis) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300F2FE' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M3 12h3m12 0h3M12 3v3m0 12v3M5.6 5.6l2.1 2.1m8.6 8.6l2.1 2.1M5.6 18.4l2.1-2.1m8.6-8.6l2.1-2.1'/></svg>" />
 
-    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <!-- Google Fonts: Space Grotesk, Plus Jakarta Sans, JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
 
-    <!-- Anti-Flash Theme Script (Prevents flash of wrong theme) -->
+    <!-- Anti-Flash Theme Script -->
     <script>
       (function() {
         try {
           var saved = localStorage.getItem('sw_rag_theme');
           var theme = saved;
           if (!theme) {
-            theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'dark';
           }
           document.documentElement.setAttribute('data-theme', theme);
         } catch (e) {}
       })();
     </script>
+
     <!-- User / Device Session Isolation Script -->
     <script>
       (function() {
@@ -37,10 +39,8 @@
             uid = 'usr_' + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
             localStorage.setItem(key, uid);
           }
-          // Set cookie for browser HTTP requests
           document.cookie = 'sw_user_id=' + uid + '; path=/; max-age=31536000; SameSite=Lax';
 
-          // Intercept fetch to automatically attach X-User-ID header to all /api/ calls
           var origFetch = window.fetch;
           window.fetch = function(input, init) {
             init = init || {};
@@ -64,17 +64,21 @@
         }
       })();
     </script>
-    <script type="module" crossorigin src="/assets/index-C1qRdULf.js?v=3"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BrPedg72.css?v=3">
+
+    <!-- Core React App & Master Stylesheets -->
+    <script type="module" crossorigin src="/assets/index-C1qRdULf.js?v=6"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BrPedg72.css?v=6">
+    <link rel="stylesheet" crossorigin href="/assets/styles-premium.css?v=4">
+
     <style>
-      /* Interactive Follow-up Question Suggestions */
+      /* Interactive Follow-up Question Suggestions & Action Chips */
       .rag-suggestions-container {
         list-style: none !important;
         padding-left: 0 !important;
-        margin: 12px 0 6px 0 !important;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
+        margin: 18px 0 6px 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 10px !important;
       }
       .rag-suggestion-item {
         list-style: none !important;
@@ -82,85 +86,591 @@
         padding: 0 !important;
       }
       .rag-suggestion-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-        padding: 6px 13px;
-        border-radius: 8px;
-        background: rgba(37, 99, 235, 0.08);
-        border: 1px solid rgba(59, 130, 246, 0.28);
-        color: #2563eb;
-        font-size: 0.88rem;
-        font-weight: 500;
-        text-decoration: underline dotted;
-        text-underline-offset: 4px;
-        cursor: pointer;
-        text-align: left;
-        line-height: 1.4;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        user-select: none;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-      }
-      [data-theme="dark"] .rag-suggestion-chip {
-        background: rgba(59, 130, 246, 0.12);
-        border-color: rgba(59, 130, 246, 0.32);
-        color: #60a5fa;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        padding: 12px 18px !important;
+        border-radius: 14px !important;
+        background: var(--bg-card-glass, rgba(13, 22, 38, 0.72)) !important;
+        backdrop-filter: blur(16px) saturate(180%) !important;
+        -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+        border: 1px solid var(--border-glass, rgba(0, 242, 254, 0.16)) !important;
+        color: var(--text-primary, #F8FAFC) !important;
+        font-family: var(--font-body, 'Plus Jakarta Sans', sans-serif) !important;
+        font-size: 0.88rem !important;
+        font-weight: 500 !important;
+        text-decoration: none !important;
+        cursor: pointer !important;
+        text-align: left !important;
+        line-height: 1.5 !important;
+        transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12) !important;
       }
       .rag-suggestion-chip:hover {
-        background: rgba(37, 99, 235, 0.16);
-        border-color: rgba(37, 99, 235, 0.55);
-        color: #1d4ed8;
-        transform: translateY(-1.5px);
-        text-decoration-style: solid;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.18);
-      }
-      [data-theme="dark"] .rag-suggestion-chip:hover {
-        background: rgba(59, 130, 246, 0.24);
-        border-color: rgba(96, 165, 250, 0.6);
-        color: #93c5fd;
-        box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+        background: var(--bg-card-hover, rgba(18, 30, 52, 0.88)) !important;
+        border-color: var(--neon-cyan, #00F2FE) !important;
+        color: var(--neon-cyan, #00F2FE) !important;
+        transform: translateX(6px) translateY(-1px) !important;
+        box-shadow: 0 8px 24px rgba(0, 242, 254, 0.2) !important;
       }
       .rag-suggestion-arrow {
-        font-size: 1.15rem;
-        font-weight: 700;
-        color: #2563eb;
-        line-height: 1;
-        transition: transform 0.2s ease;
-      }
-      [data-theme="dark"] .rag-suggestion-arrow {
-        color: #60a5fa;
+        color: var(--neon-cyan, #00F2FE) !important;
+        font-size: 1.1rem !important;
+        font-weight: 700 !important;
+        transition: transform 0.2s ease !important;
       }
       .rag-suggestion-chip:hover .rag-suggestion-arrow {
-        transform: translateX(3px);
+        transform: translateX(4px) !important;
       }
+
+      /* Chat Textarea & Action Controls */
+      .chat-textarea {
+        font-family: var(--font-body, 'Plus Jakarta Sans', sans-serif) !important;
+        font-size: 0.95rem !important;
+        line-height: 1.6 !important;
+      }
+      .btn-send {
+        background: var(--accent-gradient, linear-gradient(135deg, #00F2FE 0%, #0072FF 100%)) !important;
+        border-radius: 14px !important;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      }
+
+      /* Knowledge Modal */
+      .knowledge-inspector-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 999;
+        background: rgba(5, 8, 17, 0.85);
+        backdrop-filter: blur(16px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .knowledge-inspector-modal.active {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .knowledge-modal-card {
+        background: var(--bg-surface-glass);
+        border: 1px solid var(--border-glass);
+        border-radius: 24px;
+        max-width: 740px;
+        width: 100%;
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(0, 242, 254, 0.15);
+        overflow: hidden;
+        transform: scale(0.95);
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .knowledge-inspector-modal.active .knowledge-modal-card {
+        transform: scale(1);
+      }
+      .modal-head {
+        padding: 22px 28px 18px;
+        border-bottom: 1px solid var(--border-subtle);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .modal-title {
+        font-family: var(--font-brand);
+        font-size: 1.18rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .modal-close-btn {
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-muted);
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .modal-close-btn:hover {
+        background: var(--bg-hover);
+        color: var(--neon-cyan);
+        transform: scale(1.1);
+      }
+      .modal-body {
+        padding: 24px 28px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .module-pill-item {
+        background: var(--bg-card-glass);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        transition: all 0.2s ease;
+      }
+      .module-pill-item:hover {
+        border-color: var(--neon-cyan);
+        background: var(--bg-card-hover);
+        transform: translateX(4px);
+      }
+      .module-item-title {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--text-primary);
+      }
+      .module-item-desc {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        margin-top: 2px;
+      }
+      .module-tag {
+        font-family: var(--font-code);
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: var(--neon-cyan);
+        background: rgba(0, 242, 254, 0.08);
+        border: 1px solid var(--border-glass);
+        padding: 4px 10px;
+        border-radius: 6px;
+        white-space: nowrap;
+        text-transform: uppercase;
+      }
+
+      /* Header Badges & Export Action */
       .rag-badge {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        font-size: 0.72rem;
+        gap: 6px;
+        font-size: 0.74rem;
         font-weight: 600;
-        padding: 2px 8px;
-        margin-left: 8px;
-        border-radius: 9999px;
-        background: rgba(16, 185, 129, 0.12);
-        color: #10b981;
-        border: 1px solid rgba(16, 185, 129, 0.3);
+        padding: 5px 12px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, rgba(0, 242, 254, 0.1) 0%, rgba(2, 132, 199, 0.1) 100%);
+        color: var(--neon-cyan);
+        border: 1px solid var(--border-glass);
         vertical-align: middle;
+        box-shadow: 0 0 14px rgba(0, 242, 254, 0.12);
+        font-family: var(--font-code);
+        cursor: pointer;
+        transition: all 0.25s ease;
+        white-space: nowrap;
       }
-      [data-theme="dark"] .rag-badge {
-        background: rgba(16, 185, 129, 0.2);
-        color: #34d399;
-        border-color: rgba(52, 211, 153, 0.4);
+      .rag-badge:hover {
+        transform: scale(1.04);
+        box-shadow: 0 0 20px rgba(0, 242, 254, 0.3);
+      }
+      [data-theme="light"] .rag-badge {
+        color: #0284C7;
+        background: linear-gradient(135deg, rgba(2, 132, 199, 0.08) 0%, rgba(13, 148, 136, 0.08) 100%);
+        border-color: rgba(2, 132, 199, 0.22);
+      }
+
+      .btn-export-doc {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.74rem;
+        font-weight: 600;
+        padding: 5px 12px;
+        border-radius: 10px;
+        background: var(--bg-subtle);
+        color: var(--text-secondary);
+        border: 1px solid var(--border-subtle);
+        cursor: pointer;
+        font-family: var(--font-body);
+        transition: all 0.2s ease;
+        white-space: nowrap;
+      }
+      .btn-export-doc:hover {
+        background: var(--bg-hover);
+        color: var(--neon-cyan);
+        border-color: var(--border-glass);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+
+      /* Thinking Animation */
+      .thinking-text {
+        font-family: var(--font-code);
+        font-size: 0.82rem;
+        color: var(--neon-cyan);
+        font-weight: 500;
+        margin-left: 8px;
+        letter-spacing: 0.02em;
+        animation: pulseText 1.8s ease-in-out infinite;
+      }
+      @keyframes pulseText {
+        0%, 100% { opacity: 0.6; }
+        50% { opacity: 1; }
       }
     </style>
   </head>
   <body>
+    <!-- Interactive Kinetic Knowledge Graph Particle Canvas (Cyan & Teal) -->
+    <canvas id="knowledge-graph-canvas"></canvas>
+
+    <!-- React App Root Container -->
     <div id="root"></div>
 
-    <!-- Interactive Follow-up Question Suggestions Script -->
+    <!-- Knowledge Base Modules Inspector Modal (Pure Minimalist SVG, No Emojis) -->
+    <div id="knowledge-modal" class="knowledge-inspector-modal" role="dialog" aria-modal="true" aria-labelledby="modal-head-title">
+      <div class="knowledge-modal-card">
+        <div class="modal-head">
+          <div class="modal-title" id="modal-head-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--neon-cyan)"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10M6 14h6"/></svg>
+            <span>Indeks Knowledge Base (12 Modul Perkuliahan)</span>
+          </div>
+          <button type="button" class="modal-close-btn" id="btn-close-modal" aria-label="Tutup modal">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="module-pill-item">
+            <div>
+              <div class="module-item-title">Modul 0.0 & 0.1: Overview & Introduction</div>
+              <div class="module-item-desc">Pengantar Semantic Web, Web of Data, Linked Data, dan evolusi WWW</div>
+            </div>
+            <div class="module-tag">2 PDF • Qdrant Live</div>
+          </div>
+          <div class="module-pill-item">
+            <div>
+              <div class="module-item-title">Modul 1: Riset Semantic Web</div>
+              <div class="module-item-desc">Topik riset mutakhir, Knowledge Graphs, interoperabilitas semantik</div>
+            </div>
+            <div class="module-tag">1 PDF • Qdrant Live</div>
+          </div>
+          <div class="module-pill-item">
+            <div>
+              <div class="module-item-title">Modul 2.0 & 2.1: SWTech & AP-RDF</div>
+              <div class="module-item-desc">Resource Description Framework, Graf RDF, Triples (Subject-Predicate-Object), RDFS</div>
+            </div>
+            <div class="module-tag">2 PDF • Qdrant Live</div>
+          </div>
+          <div class="module-pill-item">
+            <div>
+              <div class="module-item-title">Modul 3.0 & 3.1: SWTech - Ontology & Protege</div>
+              <div class="module-item-desc">Konsep Ontologi, Kelas, Hirarki, Properties (Object & Data), Antarmuka Protege GUI</div>
+            </div>
+            <div class="module-tag">2 PDF • Qdrant Live</div>
+          </div>
+          <div class="module-pill-item">
+            <div>
+              <div class="module-item-title">Modul 4 & 5: Ontology Engineering & Knowledge Base</div>
+              <div class="module-item-desc">Metodologi pengembangan Ontologi, TBox (Terminological), ABox (Assertional), RBox</div>
+            </div>
+            <div class="module-tag">2 PDF • Qdrant Live</div>
+          </div>
+          <div class="module-pill-item">
+            <div>
+              <div class="module-item-title">Modul 6: SPARQL Query Language</div>
+              <div class="module-item-desc">Query language graf RDF: SELECT, WHERE, FILTER, ASK, OPTIONAL, PREFIX</div>
+            </div>
+            <div class="module-tag">1 PDF • Qdrant Live</div>
+          </div>
+          <div class="module-pill-item">
+            <div>
+              <div class="module-item-title">Modul 7 & 8: Reasoning & SWRL</div>
+              <div class="module-item-desc">Inference Engine, Logika Deskripsi (DL), Aturan SWRL (Antecedent ➔ Consequent)</div>
+            </div>
+            <div class="module-tag">2 PDF • Qdrant Live</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Kinetic Background Canvas Animation Script (Dynamic Knowledge Graph & Travelling Energy Packets) -->
     <script>
       (function() {
+        var canvas = document.getElementById('knowledge-graph-canvas');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        var width = window.innerWidth;
+        var height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+
+        var nodes = [];
+        var packets = []; // Travelling energy pulses
+        var nodeCount = Math.min(Math.floor((width * height) / 22000), 46);
+        if (nodeCount < 22) nodeCount = 22;
+
+        var labels = [
+          'RDF', 'Triple', 'Subject', 'Predicate', 'Object',
+          'Ontology', 'TBox', 'ABox', 'Protege', 'SPARQL',
+          'SWRL', 'Reasoning', 'Class', 'Property', 'URI',
+          'RDFS', 'Inference', 'Graph', 'Semantic', 'OWL',
+          'LinkedData', 'KB', 'Schema', 'Assertion'
+        ];
+
+        function initNodes() {
+          nodes = [];
+          packets = [];
+          for (var i = 0; i < nodeCount; i++) {
+            nodes.push({
+              x: Math.random() * width,
+              y: Math.random() * height,
+              vx: (Math.random() - 0.5) * 0.55,
+              vy: (Math.random() - 0.5) * 0.55,
+              radius: Math.random() * 2.8 + 2.2,
+              label: i < labels.length ? labels[i] : null,
+              pulse: Math.random() * Math.PI * 2,
+              pulseSpeed: Math.random() * 0.03 + 0.015
+            });
+          }
+        }
+
+        initNodes();
+
+        window.addEventListener('resize', function() {
+          width = window.innerWidth;
+          height = window.innerHeight;
+          canvas.width = width;
+          canvas.height = height;
+          initNodes();
+        });
+
+        var mouse = { x: null, y: null };
+        window.addEventListener('mousemove', function(e) {
+          mouse.x = e.clientX;
+          mouse.y = e.clientY;
+        });
+        window.addEventListener('mouseleave', function() {
+          mouse.x = null;
+          mouse.y = null;
+        });
+
+        var frame = 0;
+        function animate() {
+          ctx.clearRect(0, 0, width, height);
+          frame++;
+
+          var isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+          var nodeColor = isDark ? 'rgba(0, 242, 254, 0.75)' : 'rgba(2, 132, 199, 0.75)';
+          var lineColor = isDark ? 'rgba(0, 242, 254, ' : 'rgba(2, 132, 199, ';
+          var textColor = isDark ? 'rgba(203, 213, 225, 0.55)' : 'rgba(71, 85, 105, 0.65)';
+          var packetColor = isDark ? '#00F5D4' : '#0284C7';
+
+          // Spawn travelling packets periodically
+          if (frame % 28 === 0 && nodes.length > 2) {
+            var n1Idx = Math.floor(Math.random() * nodes.length);
+            var n2Idx = Math.floor(Math.random() * nodes.length);
+            if (n1Idx !== n2Idx) {
+              var n1 = nodes[n1Idx];
+              var n2 = nodes[n2Idx];
+              var d = Math.hypot(n1.x - n2.x, n1.y - n2.y);
+              if (d < 160) {
+                packets.push({
+                  from: n1,
+                  to: n2,
+                  progress: 0,
+                  speed: 0.018 + Math.random() * 0.015
+                });
+              }
+            }
+          }
+
+          // Update & Draw Packets
+          for (var p = packets.length - 1; p >= 0; p--) {
+            var pkt = packets[p];
+            pkt.progress += pkt.speed;
+            if (pkt.progress >= 1) {
+              packets.splice(p, 1);
+              continue;
+            }
+            var px = pkt.from.x + (pkt.to.x - pkt.from.x) * pkt.progress;
+            var py = pkt.from.y + (pkt.to.y - pkt.from.y) * pkt.progress;
+
+            ctx.fillStyle = packetColor;
+            ctx.shadowColor = packetColor;
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.arc(px, py, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+          }
+
+          // Update & Draw Nodes
+          for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            n.x += n.vx;
+            n.y += n.vy;
+            n.pulse += n.pulseSpeed;
+
+            if (n.x < 0 || n.x > width) n.vx *= -1;
+            if (n.y < 0 || n.y > height) n.vy *= -1;
+
+            // Connect lines between nearby nodes
+            for (var j = i + 1; j < nodes.length; j++) {
+              var n2 = nodes[j];
+              var dx = n.x - n2.x;
+              var dy = n.y - n2.y;
+              var dist = Math.sqrt(dx * dx + dy * dy);
+
+              if (dist < 160) {
+                var alpha = (1 - dist / 160) * (isDark ? 0.2 : 0.14);
+                ctx.strokeStyle = lineColor + alpha + ')';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(n.x, n.y);
+                ctx.lineTo(n2.x, n2.y);
+                ctx.stroke();
+              }
+            }
+
+            // Mouse interaction
+            if (mouse.x !== null && mouse.y !== null) {
+              var mdx = n.x - mouse.x;
+              var mdy = n.y - mouse.y;
+              var mdist = Math.sqrt(mdx * mdx + mdy * mdy);
+              if (mdist < 140) {
+                var mAlpha = (1 - mdist / 140) * (isDark ? 0.4 : 0.28);
+                ctx.strokeStyle = (isDark ? 'rgba(0, 245, 212, ' : 'rgba(13, 148, 136, ') + mAlpha + ')';
+                ctx.beginPath();
+                ctx.moveTo(n.x, n.y);
+                ctx.lineTo(mouse.x, mouse.y);
+                ctx.stroke();
+
+                // Gentle attraction
+                n.x -= mdx * 0.003;
+                n.y -= mdy * 0.003;
+              }
+            }
+
+            // Draw Node with glowing halo
+            var currentRadius = n.radius + Math.sin(n.pulse) * 0.9;
+            ctx.fillStyle = nodeColor;
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, Math.max(currentRadius, 1.8), 0, Math.PI * 2);
+            ctx.fill();
+
+            // Outer Halo Ring
+            ctx.strokeStyle = lineColor + (0.12 + Math.sin(n.pulse) * 0.08) + ')';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, currentRadius + 3.5, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Draw Label
+            if (n.label) {
+              ctx.font = '500 9.5px "JetBrains Mono", monospace';
+              ctx.fillStyle = textColor;
+              ctx.fillText(n.label, n.x + 8, n.y + 3);
+            }
+          }
+
+          requestAnimationFrame(animate);
+        }
+
+        animate();
+      })();
+    </script>
+
+    <!-- Dynamic Thinking Animation Script (No Emojis) -->
+    <script>
+      (function() {
+        var thinkingMessages = [
+          'Menganalisis query semantik...',
+          'Menelusuri 274 chunk modul di Qdrant...',
+          'Menjalankan Dense + BM25 Reciprocal Rank Fusion...',
+          'FlashRank Cross-Encoder reranking...',
+          'Gemini menyintesis jawaban terverifikasi...',
+          'Memvalidasi batas anti-halusinasi...'
+        ];
+        
+        var currentThinkingIndex = 0;
+        var thinkingInterval = null;
+        
+        window.startThinkingAnimation = function() {
+          currentThinkingIndex = 0;
+          updateThinkingText();
+          if (thinkingInterval) clearInterval(thinkingInterval);
+          thinkingInterval = setInterval(function() {
+            currentThinkingIndex = (currentThinkingIndex + 1) % thinkingMessages.length;
+            updateThinkingText();
+          }, 1800);
+        };
+        
+        window.stopThinkingAnimation = function() {
+          if (thinkingInterval) {
+            clearInterval(thinkingInterval);
+            thinkingInterval = null;
+          }
+        };
+        
+        function updateThinkingText() {
+          var thinkingElements = document.querySelectorAll('.thinking-text');
+          for (var i = 0; i < thinkingElements.length; i++) {
+            thinkingElements[i].textContent = thinkingMessages[currentThinkingIndex];
+          }
+        }
+        
+        var observer = new MutationObserver(function(mutations) {
+          mutations.forEach(function(mutation) {
+            if (mutation.addedNodes.length) {
+              mutation.addedNodes.forEach(function(node) {
+                if (node.nodeType === 1) {
+                  var typingDots = node.querySelector ? node.querySelector('.typing-dots') : null;
+                  if (!typingDots && node.classList && node.classList.contains('typing-dots')) {
+                    typingDots = node;
+                  }
+                  if (typingDots && !typingDots.querySelector('.thinking-text')) {
+                    var thinkingSpan = document.createElement('span');
+                    thinkingSpan.className = 'thinking-text';
+                    thinkingSpan.textContent = thinkingMessages[currentThinkingIndex];
+                    typingDots.appendChild(thinkingSpan);
+                    window.startThinkingAnimation();
+                  }
+                }
+              });
+            }
+            if (mutation.removedNodes.length) {
+              mutation.removedNodes.forEach(function(node) {
+                if (node.nodeType === 1) {
+                  var typingDots = node.querySelector ? node.querySelector('.typing-dots') : null;
+                  if (!typingDots && node.classList && node.classList.contains('typing-dots')) {
+                    typingDots = node;
+                  }
+                  if (typingDots) {
+                    window.stopThinkingAnimation();
+                  }
+                }
+              });
+            }
+          });
+        });
+        
+        observer.observe(document.body, { childList: true, subtree: true });
+      })();
+    </script>
+
+    <!-- User Edit, Voice Reader, MS Word Export, and Follow-up Suggestions Script (NO EMOJIS, PURE SVG) -->
+    <script>
+      (function() {
+        // SVG Icon Assets
+        var SVG_EDIT = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+        var SVG_SPEAKER = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>';
+        var SVG_STOP = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+        var SVG_DOC = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>';
+        var SVG_LAYER = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>';
+
+        // 1. Interactive Follow-up Question Suggestions
         function enhanceFollowUpSuggestions() {
           var items = document.querySelectorAll('.message-row.bot li, .message-row.bot p');
           for (var i = 0; i < items.length; i++) {
@@ -181,7 +691,7 @@
                 var questionText = parts.slice(1).join('').trim();
                 if (questionText) {
                   el.innerHTML = '<button type="button" class="rag-suggestion-chip" data-question="' + 
-                    encodeURIComponent(questionText) + '" title="Klik untuk langsung menanyakan ini">' +
+                    encodeURIComponent(questionText) + '" title="Klik untuk langsung menanyakan materi ini">' +
                     '<span class="rag-suggestion-arrow">↳</span>' +
                     '<span class="rag-suggestion-text">' + questionText + '</span>' +
                     '</button>';
@@ -192,7 +702,111 @@
           }
         }
 
-        // Delegated click handler: sets textarea value & submits automatically
+        // 2. Add "Edit Pertanyaan" Toolbar below User Messages (NO OVERLAPPING)
+        function enhanceUserMessageEditing() {
+          var userRows = document.querySelectorAll('.message-row.user');
+          for (var i = 0; i < userRows.length; i++) {
+            var row = userRows[i];
+            if (row.dataset.editEnhanced) continue;
+            row.dataset.editEnhanced = 'true';
+
+            var wrapper = row.querySelector('.message-bubble-wrapper');
+            var bubble = row.querySelector('.message-bubble');
+            if (!wrapper || !bubble) continue;
+
+            var toolbar = document.createElement('div');
+            toolbar.className = 'user-action-toolbar';
+
+            var editBtn = document.createElement('button');
+            editBtn.type = 'button';
+            editBtn.className = 'btn-edit-user-msg';
+            editBtn.innerHTML = SVG_EDIT + '<span>Edit Pertanyaan</span>';
+            editBtn.title = 'Edit pertanyaan ini dan kirim ulang';
+            
+            editBtn.addEventListener('click', (function(currentBubble) {
+              return function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                var textDiv = currentBubble.querySelector('div');
+                var currentText = textDiv ? textDiv.textContent.trim() : currentBubble.textContent.trim();
+
+                var textarea = document.querySelector('.chat-textarea');
+                if (textarea) {
+                  var setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+                  setter.call(textarea, currentText);
+                  textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                  textarea.focus();
+                  textarea.select();
+                  textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+              };
+            })(bubble));
+
+            toolbar.appendChild(editBtn);
+            wrapper.appendChild(toolbar);
+          }
+        }
+
+        // 3. Add Voice Reader (TTS) on Bot Messages
+        function enhanceBotActionToolbar() {
+          var botRows = document.querySelectorAll('.message-row.bot');
+          for (var i = 0; i < botRows.length; i++) {
+            var row = botRows[i];
+            if (row.dataset.actionsEnhanced) continue;
+            row.dataset.actionsEnhanced = 'true';
+
+            var actionBar = row.querySelector('.bot-action-bar');
+            if (!actionBar) continue;
+
+            // Voice Reader button
+            var ttsBtn = document.createElement('button');
+            ttsBtn.type = 'button';
+            ttsBtn.className = 'btn-tts-action';
+            ttsBtn.innerHTML = SVG_SPEAKER + '<span>Dengarkan</span>';
+            ttsBtn.title = 'Dengarkan penjelasan suara materi ini';
+
+            ttsBtn.addEventListener('click', (function(currentRow, currentBtn) {
+              return function() {
+                if ('speechSynthesis' in window) {
+                  if (window.speechSynthesis.speaking) {
+                    window.speechSynthesis.cancel();
+                    currentBtn.classList.remove('playing');
+                    currentBtn.innerHTML = SVG_SPEAKER + '<span>Dengarkan</span>';
+                    return;
+                  }
+
+                  var bubble = currentRow.querySelector('.markdown-body') || currentRow.querySelector('.message-bubble');
+                  var textToRead = bubble ? bubble.innerText : '';
+                  textToRead = textToRead.replace(/```[\s\S]*?```/g, ' [potongan kode] ').replace(/↳/g, '');
+
+                  var utter = new SpeechSynthesisUtterance(textToRead);
+                  utter.lang = 'id-ID';
+                  utter.rate = 1.0;
+                  
+                  utter.onend = function() {
+                    currentBtn.classList.remove('playing');
+                    currentBtn.innerHTML = SVG_SPEAKER + '<span>Dengarkan</span>';
+                  };
+                  utter.onerror = function() {
+                    currentBtn.classList.remove('playing');
+                    currentBtn.innerHTML = SVG_SPEAKER + '<span>Dengarkan</span>';
+                  };
+
+                  currentBtn.classList.add('playing');
+                  currentBtn.innerHTML = '<span class="audio-wave-bars"><span class="audio-bar"></span><span class="audio-bar"></span><span class="audio-bar"></span></span><span>Hentikan</span>';
+                  window.speechSynthesis.speak(utter);
+                } else {
+                  alert('Fitur Text-to-Speech tidak didukung di browser ini.');
+                }
+              };
+            })(row, ttsBtn));
+
+            actionBar.appendChild(ttsBtn);
+          }
+        }
+
+        // 4. Delegated click handler for suggestion chips
         document.addEventListener('click', function(e) {
           var chip = e.target.closest('.rag-suggestion-chip');
           if (!chip) return;
@@ -209,7 +823,6 @@
           var textarea = document.querySelector('.chat-textarea');
           if (!textarea) return;
 
-          // Native property descriptor setter so React tracks state change
           var setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
           setter.call(textarea, question);
           textarea.dispatchEvent(new Event('input', { bubbles: true }));
@@ -225,26 +838,121 @@
           }, 120);
         });
 
+        // 5. Enhance Top Header: 12 Modules Badge & Export to Microsoft Word (.doc)
         function enhanceHeaderBadge() {
           var header = document.querySelector('.header-title, .app-title, .brand-text, .header-left h1, .header-left h2, .topbar-title');
+          var topHeader = document.querySelector('.top-header');
+          var rightArea = document.querySelector('.header-right');
+
           if (header && !header.dataset.ragBadgeAttached) {
             header.dataset.ragBadgeAttached = 'true';
-            var badge = document.createElement('span');
+            
+            var badge = document.createElement('button');
+            badge.type = 'button';
             badge.className = 'rag-badge';
-            badge.innerHTML = '⚡ Advanced RAG';
-            badge.title = 'Didukung oleh Conversational Query Rewriter, Hybrid BM25+Dense RRF, dan FlashRank Cross-Encoder';
+            badge.innerHTML = SVG_LAYER + '<span>12 Modul Kuliah • Advanced RAG</span>';
+            badge.title = 'Klik untuk melihat daftar 12 modul perkuliahan terindeks di Qdrant';
+            badge.onclick = function() {
+              var modal = document.getElementById('knowledge-modal');
+              if (modal) modal.classList.add('active');
+            };
             header.appendChild(badge);
           }
+
+          if (rightArea && !rightArea.dataset.exportAttached) {
+            rightArea.dataset.exportAttached = 'true';
+
+            // Export to Microsoft Word Button (.doc)
+            var exportBtn = document.createElement('button');
+            exportBtn.type = 'button';
+            exportBtn.className = 'btn-export-doc';
+            exportBtn.innerHTML = SVG_DOC + '<span>Ekspor Catatan (.doc)</span>';
+            exportBtn.title = 'Unduh seluruh riwayat obrolan sesi ini sebagai dokumen Microsoft Word terformat';
+            
+            exportBtn.onclick = function() {
+              var messages = document.querySelectorAll('.message-row');
+              if (!messages.length) {
+                alert('Belum ada riwayat percakapan untuk diekspor.');
+                return;
+              }
+
+              var dateStr = new Date().toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' });
+              
+              // Construct genuine Microsoft Word HTML Schema Document
+              var wordHtml = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">';
+              wordHtml += '<head><meta charset="utf-8"><title>Catatan Kuliah Semantic Web</title>';
+              wordHtml += '<style>';
+              wordHtml += 'body { font-family: "Calibri", "Segoe UI", Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #1e293b; margin: 36pt 48pt; }';
+              wordHtml += 'h1 { color: #0f172a; font-size: 18pt; border-bottom: 2pt solid #0284c7; padding-bottom: 6pt; margin-bottom: 4pt; }';
+              wordHtml += '.meta-sub { color: #64748b; font-size: 9.5pt; margin-bottom: 24pt; }';
+              wordHtml += '.user-box { background-color: #f0f9ff; border-left: 3.5pt solid #0284c7; padding: 10pt 14pt; margin: 16pt 0 8pt 0; }';
+              wordHtml += '.user-title { font-weight: bold; color: #0369a1; font-size: 10.5pt; margin-bottom: 4pt; }';
+              wordHtml += '.bot-box { background-color: #ffffff; border: 1pt solid #e2e8f0; padding: 14pt; margin-bottom: 20pt; }';
+              wordHtml += '.bot-title { font-weight: bold; color: #0f172a; font-size: 10.5pt; margin-bottom: 8pt; border-bottom: 1pt solid #f1f5f9; padding-bottom: 4pt; }';
+              wordHtml += 'pre, code { font-family: "Consolas", monospace; font-size: 9.5pt; background: #f8fafc; color: #0f172a; border: 1pt solid #cbd5e1; }';
+              wordHtml += 'table { border-collapse: collapse; width: 100%; margin: 10pt 0; }';
+              wordHtml += 'th, td { border: 1pt solid #cbd5e1; padding: 6pt 10pt; font-size: 10pt; text-align: left; }';
+              wordHtml += 'th { background: #f1f5f9; font-weight: bold; }';
+              wordHtml += '</style></head><body>';
+              
+              wordHtml += '<h1>Catatan Pembelajaran Semantic Web & Knowledge Engineering</h1>';
+              wordHtml += '<p class="meta-sub">Sistem KBR Knowledge Hub (12 Modul Kuliah) &bull; Diekspor pada: ' + dateStr + '</p>';
+
+              messages.forEach(function(m, idx) {
+                var isBot = m.classList.contains('bot');
+                if (!isBot) {
+                  var userText = m.querySelector('.message-bubble')?.innerText || m.innerText;
+                  userHtml = userText.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
+                  wordHtml += '<div class="user-box"><div class="user-title">Pertanyaan Mahasiswa #' + (idx + 1) + ':</div>' + userHtml + '</div>';
+                } else {
+                  var botBody = m.querySelector('.markdown-body');
+                  var botHtml = botBody ? botBody.innerHTML : m.innerText.replace(/\n/g, '<br/>');
+                  wordHtml += '<div class="bot-box"><div class="bot-title">Penjelasan KBR Knowledge Assistant:</div>' + botHtml + '</div>';
+                }
+              });
+
+              wordHtml += '</body></html>';
+
+              var blob = new Blob(['\ufeff', wordHtml], {
+                type: 'application/msword;charset=utf-8'
+              });
+              var a = document.createElement('a');
+              a.href = URL.createObjectURL(blob);
+              a.download = 'Catatan_SemanticWeb_' + Date.now() + '.doc';
+              a.click();
+            };
+
+            rightArea.insertBefore(exportBtn, rightArea.firstChild);
+          }
         }
+
+        // Modal close listeners
+        var modal = document.getElementById('knowledge-modal');
+        var closeBtn = document.getElementById('btn-close-modal');
+        if (closeBtn && modal) {
+          closeBtn.onclick = function() { modal.classList.remove('active'); };
+          modal.onclick = function(e) {
+            if (e.target === modal) modal.classList.remove('active');
+          };
+        }
+        window.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape' && modal && modal.classList.contains('active')) {
+            modal.classList.remove('active');
+          }
+        });
 
         // MutationObserver to enhance newly rendered elements
         var observer = new MutationObserver(function() {
           enhanceFollowUpSuggestions();
+          enhanceUserMessageEditing();
+          enhanceBotActionToolbar();
           enhanceHeaderBadge();
         });
         observer.observe(document.body, { childList: true, subtree: true });
         window.addEventListener('DOMContentLoaded', function() {
           enhanceFollowUpSuggestions();
+          enhanceUserMessageEditing();
+          enhanceBotActionToolbar();
           enhanceHeaderBadge();
         });
       })();

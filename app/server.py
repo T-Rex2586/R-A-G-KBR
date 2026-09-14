@@ -51,7 +51,12 @@ logger.info("Memuat model Cross-Encoder Reranker FlashRank (ms-marco-TinyBERT-L-
 ranker = Ranker(model_name="ms-marco-TinyBERT-L-2-v2")
 
 logger.info(f"Menghubungkan ke Qdrant di {QDRANT_HOST}...")
-qdrant_client = QdrantClient(url=QDRANT_HOST, api_key=QDRANT_API_KEY, timeout=10)
+try:
+    qdrant_client = QdrantClient(url=QDRANT_HOST, api_key=QDRANT_API_KEY, timeout=10)
+    logger.info("✓ Koneksi Qdrant berhasil")
+except Exception as e:
+    logger.warning(f"⚠ Qdrant connection issue: {e}")
+    qdrant_client = None
 
 # SQLite Persistent Session Storage dengan Isolasi User ID
 DB_PATH = BASE_DIR / "app" / "chat_storage.db"
@@ -240,7 +245,7 @@ Instruksi Utama:
    Di akhir setiap penjelasan materi yang sukses, SELALU berikan 2 hingga 3 rekomendasi pertanyaan selanjutnya yang menarik dan relevan untuk diajukan pengguna, dengan format tepat seperti ini:
 
    ---
-   💡 **Rekomendasi Pertanyaan Terkait:**
+   **Rekomendasi Pertanyaan Lanjutan:**
    * ↳ [Pertanyaan lanjutan 1 yang spesifik dan relevan]
    * ↳ [Pertanyaan lanjutan 2 yang spesifik dan relevan]
    * ↳ [Pertanyaan lanjutan 3 yang spesifik dan relevan]
@@ -700,7 +705,7 @@ async def chat_endpoint(req: ChatRequest, request: Request):
 
     # Manajemen Session ID
     session_id = req.session_id or str(uuid.uuid4())
-    title_prefix = "📷 " if image_data else ""
+    title_prefix = "[Gambar] " if image_data else ""
     session_title = title_prefix + (query[:30] + ("..." if len(query) > 30 else "")) or "Percakapan Baru"
 
     # 1. Pipeline Advanced RAG (Conversational Rewriter + Hybrid BM25/Dense RRF + FlashRank Reranker)
